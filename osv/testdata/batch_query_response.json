@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "vulns": [
+        {
+          "id": "GHSA-jf85-cpcp-j695",
+          "summary": "Prototype Pollution in lodash",
+          "aliases": ["CVE-2020-8203"],
+          "modified": "2023-02-01T05:05:50.496954Z",
+          "published": "2020-07-15T19:15:00Z",
+          "affected": [
+            {
+              "package": {
+                "ecosystem": "npm",
+                "name": "lodash"
+              },
+              "ranges": [
+                {
+                  "type": "SEMVER",
+                  "events": [
+                    {"introduced": "0"},
+                    {"fixed": "4.17.19"}
+                  ]
+                }
+              ]
+            }
+          ],
+          "severity": [
+            {
+              "type": "CVSS_V3",
+              "score": "7.4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "vulns": []
+    }
+  ]
+}

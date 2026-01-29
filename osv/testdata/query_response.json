@@ -1,0 +1,48 @@
+{
+  "vulns": [
+    {
+      "id": "GHSA-jf85-cpcp-j695",
+      "summary": "Prototype Pollution in lodash",
+      "details": "Versions of lodash prior to 4.17.19 are vulnerable to Prototype Pollution. The function zipObjectDeep allows a malicious user to modify the prototype of Object if the property identifiers are user-supplied.",
+      "aliases": ["CVE-2020-8203"],
+      "modified": "2023-02-01T05:05:50.496954Z",
+      "published": "2020-07-15T19:15:00Z",
+      "references": [
+        {
+          "type": "ADVISORY",
+          "url": "https://github.com/advisories/GHSA-jf85-cpcp-j695"
+        },
+        {
+          "type": "WEB",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-8203"
+        }
+      ],
+      "affected": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "lodash"
+          },
+          "ranges": [
+            {
+              "type": "SEMVER",
+              "events": [
+                {"introduced": "0"},
+                {"fixed": "4.17.19"}
+              ]
+            }
+          ]
+        }
+      ],
+      "severity": [
+        {
+          "type": "CVSS_V3",
+          "score": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:H"
+        }
+      ],
+      "database_specific": {
+        "severity": "HIGH"
+      }
+    }
+  ]
+}
