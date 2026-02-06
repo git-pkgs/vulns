@@ -22,7 +22,7 @@ func TestQuery(t *testing.T) {
 			t.Errorf("unexpected method: %s", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(fixture)
+		_, _ = w.Write(fixture)
 	}))
 	defer server.Close()
 
@@ -64,7 +64,7 @@ func TestQueryBatch(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(fixture)
+		_, _ = w.Write(fixture)
 	}))
 	defer server.Close()
 
@@ -105,7 +105,7 @@ func TestGet(t *testing.T) {
 			t.Errorf("unexpected method: %s", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(fixture)
+		_, _ = w.Write(fixture)
 	}))
 	defer server.Close()
 
@@ -144,7 +144,7 @@ func TestGetNotFound(t *testing.T) {
 func TestQueryNoVulnerabilities(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"vulns": []}`))
+		_, _ = w.Write([]byte(`{"vulns": []}`))
 	}))
 	defer server.Close()
 

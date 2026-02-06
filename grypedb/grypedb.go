@@ -102,11 +102,11 @@ func New(dbPath string, opts ...Option) (*Source, error) {
 	var model int
 	err = db.QueryRow("SELECT model FROM db_metadata").Scan(&model)
 	if err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("reading db metadata: %w", err)
 	}
 	if model != 6 {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("unsupported database model version: %d (expected 6)", model)
 	}
 
@@ -129,7 +129,7 @@ func Download(ctx context.Context, destDir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fetching listing: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("listing request failed with status %d", resp.StatusCode)
@@ -157,7 +157,7 @@ func Download(ctx context.Context, destDir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("downloading database: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("download failed with status %d", resp.StatusCode)
@@ -173,7 +173,7 @@ func Download(ctx context.Context, destDir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("creating output file: %w", err)
 	}
-	defer outFile.Close()
+	defer func() { _ = outFile.Close() }()
 
 	// Decompress if gzipped
 	var reader io.Reader = resp.Body
@@ -182,7 +182,7 @@ func Download(ctx context.Context, destDir string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("creating gzip reader: %w", err)
 		}
-		defer gzReader.Close()
+		defer func() { _ = gzReader.Close() }()
 		reader = gzReader
 	}
 
@@ -231,7 +231,7 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 	if err != nil {
 		return nil, fmt.Errorf("querying database: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var results []vulns.Vulnerability
 	for rows.Next() {

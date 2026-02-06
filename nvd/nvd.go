@@ -232,19 +232,19 @@ func convertVulnerabilities(nvdVulns []nvdVulnerability, p *purl.PURL) []vulns.V
 		}
 
 		// Add CVSS severity
-		if cve.Metrics.CVSSMetricV31 != nil && len(cve.Metrics.CVSSMetricV31) > 0 {
+		if len(cve.Metrics.CVSSMetricV31) > 0 {
 			m := cve.Metrics.CVSSMetricV31[0]
 			v.Severity = append(v.Severity, vulns.Severity{
 				Type:  "CVSS_V3",
 				Score: m.CVSSData.VectorString,
 			})
-		} else if cve.Metrics.CVSSMetricV30 != nil && len(cve.Metrics.CVSSMetricV30) > 0 {
+		} else if len(cve.Metrics.CVSSMetricV30) > 0 {
 			m := cve.Metrics.CVSSMetricV30[0]
 			v.Severity = append(v.Severity, vulns.Severity{
 				Type:  "CVSS_V3",
 				Score: m.CVSSData.VectorString,
 			})
-		} else if cve.Metrics.CVSSMetricV2 != nil && len(cve.Metrics.CVSSMetricV2) > 0 {
+		} else if len(cve.Metrics.CVSSMetricV2) > 0 {
 			m := cve.Metrics.CVSSMetricV2[0]
 			v.Severity = append(v.Severity, vulns.Severity{
 				Type:  "CVSS_V2",

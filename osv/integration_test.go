@@ -16,7 +16,7 @@ func TestEndToEndVulnerabilityWorkflow(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(fixture)
+		_, _ = w.Write(fixture)
 	}))
 	defer server.Close()
 
@@ -89,7 +89,7 @@ func TestBatchQueryWorkflow(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(fixture)
+		_, _ = w.Write(fixture)
 	}))
 	defer server.Close()
 
@@ -165,7 +165,7 @@ func TestErrorHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.body))
+				_, _ = w.Write([]byte(tt.body))
 			}))
 			defer server.Close()
 
@@ -204,7 +204,7 @@ func TestMultipleAffectedPackages(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(response))
+		_, _ = w.Write([]byte(response))
 	}))
 	defer server.Close()
 
