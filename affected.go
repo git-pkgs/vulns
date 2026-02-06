@@ -49,6 +49,8 @@ func isAffectedVersion(affected Affected, version string) bool {
 }
 
 // AffectedVersionRange returns a vers range string representing the affected versions.
+// Events are processed sequentially, emitting a constraint for each
+// introduced/fixed or introduced/lastAffected pair.
 func AffectedVersionRange(affected Affected) string {
 	// If explicit versions are listed, return them
 	if len(affected.Versions) > 0 {
@@ -58,19 +60,34 @@ func AffectedVersionRange(affected Affected) string {
 	// Build range from events
 	var parts []string
 	for _, r := range affected.Ranges {
+		var introduced string
 		for _, e := range r.Events {
 			if e.Introduced != "" {
-				if e.Introduced == "0" {
-					parts = append(parts, ">=0")
+				introduced = e.Introduced
+			}
+			if e.Fixed != "" && introduced != "" {
+				if introduced == "0" {
+					parts = append(parts, "<"+e.Fixed)
 				} else {
-					parts = append(parts, ">="+e.Introduced)
+					parts = append(parts, ">="+introduced+"|<"+e.Fixed)
 				}
+				introduced = ""
 			}
-			if e.Fixed != "" {
-				parts = append(parts, "<"+e.Fixed)
+			if e.LastAffected != "" && introduced != "" {
+				if introduced == "0" {
+					parts = append(parts, "<="+e.LastAffected)
+				} else {
+					parts = append(parts, ">="+introduced+"|<="+e.LastAffected)
+				}
+				introduced = ""
 			}
-			if e.LastAffected != "" {
-				parts = append(parts, "<="+e.LastAffected)
+		}
+		// Handle trailing introduced with no fix
+		if introduced != "" {
+			if introduced == "0" {
+				parts = append(parts, "*")
+			} else {
+				parts = append(parts, ">="+introduced)
 			}
 		}
 	}
