@@ -23,6 +23,7 @@ const (
 type Source struct {
 	httpClient *http.Client
 	baseURL    string
+	userAgent  string
 }
 
 // Option configures a Source.
@@ -42,11 +43,19 @@ func WithBaseURL(url string) Option {
 	}
 }
 
+// WithUserAgent sets the User-Agent header for API requests.
+func WithUserAgent(ua string) Option {
+	return func(s *Source) {
+		s.userAgent = ua
+	}
+}
+
 // New creates a new OSV source.
 func New(opts ...Option) *Source {
 	s := &Source{
 		httpClient: &http.Client{Timeout: DefaultTimeout},
 		baseURL:    DefaultAPIURL,
+		userAgent:  "vulns",
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -82,6 +91,7 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("User-Agent", s.userAgent)
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
@@ -141,6 +151,7 @@ func (s *Source) QueryBatch(ctx context.Context, purls []*purl.PURL) ([][]vulns.
 			return nil, fmt.Errorf("creating request: %w", err)
 		}
 		httpReq.Header.Set("Content-Type", "application/json")
+		httpReq.Header.Set("User-Agent", s.userAgent)
 
 		resp, err := s.httpClient.Do(httpReq)
 		if err != nil {
@@ -174,6 +185,7 @@ func (s *Source) Get(ctx context.Context, id string) (*vulns.Vulnerability, erro
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
+	httpReq.Header.Set("User-Agent", s.userAgent)
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {

@@ -168,6 +168,58 @@ func TestName(t *testing.T) {
 	}
 }
 
+func TestDefaultUserAgent(t *testing.T) {
+	var gotUA string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"vulns": []}`))
+	}))
+	defer server.Close()
+
+	source := New(WithBaseURL(server.URL))
+	p := purl.MakePURL("npm", "test", "1.0.0")
+	_, _ = source.Query(context.Background(), p)
+
+	if gotUA != "vulns" {
+		t.Errorf("default User-Agent = %q, want %q", gotUA, "vulns")
+	}
+}
+
+func TestCustomUserAgent(t *testing.T) {
+	var gotUA string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"vulns": []}`))
+	}))
+	defer server.Close()
+
+	source := New(WithBaseURL(server.URL), WithUserAgent("git-pkgs/1.0"))
+	p := purl.MakePURL("npm", "test", "1.0.0")
+	_, _ = source.Query(context.Background(), p)
+
+	if gotUA != "git-pkgs/1.0" {
+		t.Errorf("User-Agent = %q, want %q", gotUA, "git-pkgs/1.0")
+	}
+}
+
+func TestUserAgentOnGet(t *testing.T) {
+	var gotUA string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	source := New(WithBaseURL(server.URL), WithUserAgent("test-agent"))
+	_, _ = source.Get(context.Background(), "GHSA-test")
+
+	if gotUA != "test-agent" {
+		t.Errorf("Get User-Agent = %q, want %q", gotUA, "test-agent")
+	}
+}
+
 func loadFixture(t *testing.T, name string) []byte {
 	t.Helper()
 	path := filepath.Join("testdata", name)
