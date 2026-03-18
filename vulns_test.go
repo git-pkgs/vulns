@@ -16,7 +16,7 @@ func TestVulnerabilitySeverityLevel(t *testing.T) {
 			vuln: Vulnerability{
 				Severity: []Severity{{Type: "CVSS_V3", Score: "9.8"}},
 			},
-			expected: "critical",
+			expected: LevelCritical,
 		},
 		{
 			name: "high from cvss v3 vector",
@@ -170,8 +170,8 @@ func TestVulnerabilityCVSS(t *testing.T) {
 	if cvss.Score != 10.0 {
 		t.Errorf("CVSS().Score = %v, want %v", cvss.Score, 10.0)
 	}
-	if cvss.Level != "critical" {
-		t.Errorf("CVSS().Level = %q, want %q", cvss.Level, "critical")
+	if cvss.Level != LevelCritical {
+		t.Errorf("CVSS().Level = %q, want %q", cvss.Level, LevelCritical)
 	}
 }
 

@@ -117,7 +117,6 @@ func (s *Source) QueryBatch(ctx context.Context, purls []*purl.PURL) ([][]vulns.
 		return nil, nil
 	}
 
-	// deps.dev batch endpoint supports up to 5000 requests
 	const batchSize = 5000
 	results := make([][]vulns.Vulnerability, len(purls))
 
@@ -126,65 +125,70 @@ func (s *Source) QueryBatch(ctx context.Context, purls []*purl.PURL) ([][]vulns.
 		if end > len(purls) {
 			end = len(purls)
 		}
-		batch := purls[i:end]
 
-		// Build batch request
-		var requests []batchRequest
-		for _, p := range batch {
-			requests = append(requests, batchRequest{
-				Purl: p.String(),
-			})
-		}
-
-		reqBody, err := json.Marshal(batchQueryRequest{Requests: requests})
+		batchResp, err := s.fetchBatch(ctx, purls[i:end])
 		if err != nil {
-			return nil, fmt.Errorf("marshaling batch request: %w", err)
+			return nil, err
 		}
 
-		httpReq, err := http.NewRequestWithContext(ctx, "POST", s.baseURL+"/purlbatch", strings.NewReader(string(reqBody)))
-		if err != nil {
-			return nil, fmt.Errorf("creating request: %w", err)
-		}
-		httpReq.Header.Set("Content-Type", "application/json")
-
-		resp, err := s.httpClient.Do(httpReq)
-		if err != nil {
-			return nil, fmt.Errorf("executing request: %w", err)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			respBody, _ := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			return nil, fmt.Errorf("batch query failed with status %d: %s", resp.StatusCode, string(respBody))
-		}
-
-		var batchResp batchQueryResponse
-		if err := json.NewDecoder(resp.Body).Decode(&batchResp); err != nil {
-			_ = resp.Body.Close()
-			return nil, fmt.Errorf("decoding response: %w", err)
-		}
-		_ = resp.Body.Close()
-
-		// Process batch results
 		for j, r := range batchResp.Responses {
-			if r.Version == nil {
-				continue
-			}
-			var vulnList []vulns.Vulnerability
-			for _, key := range r.Version.AdvisoryKeys {
-				adv, err := s.getAdvisory(ctx, key.ID)
-				if err != nil {
-					continue
-				}
-				if adv != nil {
-					vulnList = append(vulnList, *adv)
-				}
-			}
-			results[i+j] = vulnList
+			results[i+j] = s.resolveAdvisories(ctx, r)
 		}
 	}
 
 	return results, nil
+}
+
+func (s *Source) fetchBatch(ctx context.Context, purls []*purl.PURL) (*batchQueryResponse, error) {
+	var requests []batchRequest
+	for _, p := range purls {
+		requests = append(requests, batchRequest{Purl: p.String()})
+	}
+
+	reqBody, err := json.Marshal(batchQueryRequest{Requests: requests})
+	if err != nil {
+		return nil, fmt.Errorf("marshaling batch request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", s.baseURL+"/purlbatch", strings.NewReader(string(reqBody)))
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("batch query failed with status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var batchResp batchQueryResponse
+	if err := json.NewDecoder(resp.Body).Decode(&batchResp); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &batchResp, nil
+}
+
+func (s *Source) resolveAdvisories(ctx context.Context, r batchResponse) []vulns.Vulnerability {
+	if r.Version == nil {
+		return nil
+	}
+	var result []vulns.Vulnerability
+	for _, key := range r.Version.AdvisoryKeys {
+		adv, err := s.getAdvisory(ctx, key.ID)
+		if err != nil {
+			continue
+		}
+		if adv != nil {
+			result = append(result, *adv)
+		}
+	}
+	return result
 }
 
 // Get fetches a specific vulnerability by ID (OSV ID).

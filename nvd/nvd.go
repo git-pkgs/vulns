@@ -131,9 +131,13 @@ func (s *Source) QueryBatch(ctx context.Context, purls []*purl.PURL) ([][]vulns.
 	results := make([][]vulns.Vulnerability, len(purls))
 
 	// NVD rate limits: 5 req/30s without key, 50 req/30s with key
-	delay := 6 * time.Second
+	const (
+		delayNoKey  = 6 * time.Second
+		delayWithKey = 600 * time.Millisecond
+	)
+	delay := delayNoKey
 	if s.apiKey != "" {
-		delay = 600 * time.Millisecond
+		delay = delayWithKey
 	}
 
 	for i, p := range purls {
@@ -232,19 +236,20 @@ func convertVulnerabilities(nvdVulns []nvdVulnerability, p *purl.PURL) []vulns.V
 		}
 
 		// Add CVSS severity
-		if len(cve.Metrics.CVSSMetricV31) > 0 {
+		switch {
+		case len(cve.Metrics.CVSSMetricV31) > 0:
 			m := cve.Metrics.CVSSMetricV31[0]
 			v.Severity = append(v.Severity, vulns.Severity{
 				Type:  "CVSS_V3",
 				Score: m.CVSSData.VectorString,
 			})
-		} else if len(cve.Metrics.CVSSMetricV30) > 0 {
+		case len(cve.Metrics.CVSSMetricV30) > 0:
 			m := cve.Metrics.CVSSMetricV30[0]
 			v.Severity = append(v.Severity, vulns.Severity{
 				Type:  "CVSS_V3",
 				Score: m.CVSSData.VectorString,
 			})
-		} else if len(cve.Metrics.CVSSMetricV2) > 0 {
+		case len(cve.Metrics.CVSSMetricV2) > 0:
 			m := cve.Metrics.CVSSMetricV2[0]
 			v.Severity = append(v.Severity, vulns.Severity{
 				Type:  "CVSS_V2",

@@ -107,13 +107,13 @@ func (v *Vulnerability) SeverityLevel() string {
 		if severity, ok := v.DatabaseSpecific["severity"].(string); ok {
 			switch severity {
 			case "CRITICAL", "critical":
-				return "critical"
+				return LevelCritical
 			case "HIGH", "high":
-				return "high"
+				return LevelHigh
 			case "MODERATE", "MEDIUM", "moderate", "medium":
-				return "medium"
+				return LevelMedium
 			case "LOW", "low":
-				return "low"
+				return LevelLow
 			}
 		}
 	}
@@ -182,29 +182,29 @@ func matchesPackage(pkg Package, ecosystem, name string) bool {
 // scanFloat parses a float from the beginning of a string.
 // Used internally for parsing bare CVSS scores.
 func scanFloat(s string, v *float64) (int, error) {
+	const base = 10
 	var f float64
 	n := 0
-	for i := 0; i < len(s); i++ {
+	i := 0
+	for ; i < len(s); i++ {
 		c := s[i]
-		if c >= '0' && c <= '9' {
-			f = f*10 + float64(c-'0')
-			n++
-		} else if c == '.' {
-			n++
-			frac := 0.1
-			for i++; i < len(s); i++ {
-				c := s[i]
-				if c >= '0' && c <= '9' {
-					f += float64(c-'0') * frac
-					frac /= 10
-					n++
-				} else {
-					break
-				}
+		if c < '0' || c > '9' {
+			break
+		}
+		f = f*base + float64(c-'0')
+		n++
+	}
+	if i < len(s) && s[i] == '.' {
+		n++
+		frac := 0.1
+		for i++; i < len(s); i++ {
+			c := s[i]
+			if c < '0' || c > '9' {
+				break
 			}
-			break
-		} else {
-			break
+			f += float64(c-'0') * frac
+			frac /= base
+			n++
 		}
 	}
 	if n == 0 {

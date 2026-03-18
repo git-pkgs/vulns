@@ -6,41 +6,17 @@ import (
 
 // isAffectedVersion checks if a version is affected according to the Affected entry.
 func isAffectedVersion(affected Affected, version string) bool {
-	// Check explicit versions list first
 	for _, v := range affected.Versions {
 		if v == version {
 			return true
 		}
 	}
 
-	// Check version ranges
 	for _, r := range affected.Ranges {
 		if r.Type != "SEMVER" && r.Type != "ECOSYSTEM" {
 			continue
 		}
-
-		inRange := false
-		for _, e := range r.Events {
-			if e.Introduced != "" {
-				// "0" means all versions from the beginning
-				if e.Introduced == "0" {
-					inRange = true
-				} else if vers.Compare(version, e.Introduced) >= 0 {
-					inRange = true
-				}
-			}
-			if e.Fixed != "" && inRange {
-				if vers.Compare(version, e.Fixed) >= 0 {
-					inRange = false
-				}
-			}
-			if e.LastAffected != "" && inRange {
-				if vers.Compare(version, e.LastAffected) > 0 {
-					inRange = false
-				}
-			}
-		}
-		if inRange {
+		if versionInRange(r.Events, version) {
 			return true
 		}
 	}
@@ -48,48 +24,33 @@ func isAffectedVersion(affected Affected, version string) bool {
 	return false
 }
 
+func versionInRange(events []Event, version string) bool {
+	inRange := false
+	for _, e := range events {
+		if e.Introduced != "" {
+			inRange = e.Introduced == "0" || vers.Compare(version, e.Introduced) >= 0
+		}
+		if e.Fixed != "" && inRange && vers.Compare(version, e.Fixed) >= 0 {
+			inRange = false
+		}
+		if e.LastAffected != "" && inRange && vers.Compare(version, e.LastAffected) > 0 {
+			inRange = false
+		}
+	}
+	return inRange
+}
+
 // AffectedVersionRange returns a vers range string representing the affected versions.
 // Events are processed sequentially, emitting a constraint for each
 // introduced/fixed or introduced/lastAffected pair.
 func AffectedVersionRange(affected Affected) string {
-	// If explicit versions are listed, return them
 	if len(affected.Versions) > 0 {
 		return versionsToRange(affected.Versions)
 	}
 
-	// Build range from events
 	var parts []string
 	for _, r := range affected.Ranges {
-		var introduced string
-		for _, e := range r.Events {
-			if e.Introduced != "" {
-				introduced = e.Introduced
-			}
-			if e.Fixed != "" && introduced != "" {
-				if introduced == "0" {
-					parts = append(parts, "<"+e.Fixed)
-				} else {
-					parts = append(parts, ">="+introduced+"|<"+e.Fixed)
-				}
-				introduced = ""
-			}
-			if e.LastAffected != "" && introduced != "" {
-				if introduced == "0" {
-					parts = append(parts, "<="+e.LastAffected)
-				} else {
-					parts = append(parts, ">="+introduced+"|<="+e.LastAffected)
-				}
-				introduced = ""
-			}
-		}
-		// Handle trailing introduced with no fix
-		if introduced != "" {
-			if introduced == "0" {
-				parts = append(parts, "*")
-			} else {
-				parts = append(parts, ">="+introduced)
-			}
-		}
+		parts = append(parts, rangeEventParts(r.Events)...)
 	}
 
 	if len(parts) == 0 {
@@ -101,6 +62,41 @@ func AffectedVersionRange(affected Affected) string {
 		result += "|" + p
 	}
 	return result
+}
+
+func rangeEventParts(events []Event) []string {
+	var parts []string
+	var introduced string
+	for _, e := range events {
+		if e.Introduced != "" {
+			introduced = e.Introduced
+		}
+		if e.Fixed != "" && introduced != "" {
+			parts = append(parts, formatRange(introduced, "<"+e.Fixed))
+			introduced = ""
+		}
+		if e.LastAffected != "" && introduced != "" {
+			parts = append(parts, formatRange(introduced, "<="+e.LastAffected))
+			introduced = ""
+		}
+	}
+	if introduced != "" {
+		parts = append(parts, formatRange(introduced, ""))
+	}
+	return parts
+}
+
+func formatRange(introduced, bound string) string {
+	if introduced == "0" {
+		if bound == "" {
+			return "*"
+		}
+		return bound
+	}
+	if bound == "" {
+		return ">=" + introduced
+	}
+	return ">=" + introduced + "|" + bound
 }
 
 func versionsToRange(versions []string) string {
