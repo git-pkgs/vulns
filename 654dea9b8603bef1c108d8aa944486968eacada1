@@ -1,0 +1,39 @@
+vulns_test.go
+  81e206274e44c861 19,173-174
+ghsa/ghsa.go
+  81e206274e44c861 20-26,277-278,281,284,287,290,330-331,336-339,342-343,348-351,360-361,366,368,372,378,380
+affected.go
+  81e206274e44c861 19,27-36,40,53,67-70,75,79,83-99
+vulns.go
+  81e206274e44c861 110,112,114,116,185,189,191,194,196-197,202-203,205
+vl/vl.go
+  81e206274e44c861 242-243
+depsdev/depsdev.go
+  81e206274e44c861 129,131,134-135,137,139-140,142-145,148-150,153-155,157,159-161,163-168,170-177,179,181,185,187-189,191
+grypedb/grypedb.go
+  81e206274e44c861 70-71,74,76,80,109-110,169-170
+cvss.go
+  81e206274e44c861 12-24,130-135,137,139,147-154,156
+nvd/nvd.go
+  81e206274e44c861 134-138,140,239-240,246,252
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "654dea9b8603bef1c108d8aa944486968eacada1",
+  "prompts": {
+    "81e206274e44c861": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d9ed28b6-fe1d-4325-a5ff-b0937e4145ac",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Andrew Nesbitt <andrewnez@gmail.com>",
+      "messages": [],
+      "total_additions": 226,
+      "total_deletions": 196,
+      "accepted_lines": 187,
+      "overriden_lines": 0
+    }
+  }
+}
