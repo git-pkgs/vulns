@@ -239,7 +239,8 @@ func purlToVendorProduct(p *purl.PURL) (vendor, product string) {
 	case "golang":
 		// For Go, vendor is often the org/user, product is the repo/module
 		parts := strings.Split(name, "/")
-		if len(parts) >= 2 {
+		const minParts = 2
+		if len(parts) >= minParts {
 			return parts[len(parts)-2], parts[len(parts)-1]
 		}
 		return "golang", name

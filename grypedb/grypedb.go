@@ -67,16 +67,17 @@ func New(dbPath string, opts ...Option) (*Source, error) {
 
 	// Determine if path is a directory or file
 	info, err := os.Stat(dbPath)
-	if err == nil && info.IsDir() {
+	switch {
+	case err == nil && info.IsDir():
 		s.dbDir = dbPath
 		dbPath = filepath.Join(dbPath, "vulnerability.db")
-	} else if err == nil {
+	case err == nil:
 		s.dbDir = filepath.Dir(dbPath)
-	} else if os.IsNotExist(err) {
+	case os.IsNotExist(err):
 		// Path doesn't exist - treat as directory for auto-download
 		s.dbDir = dbPath
 		dbPath = filepath.Join(dbPath, "vulnerability.db")
-	} else {
+	default:
 		return nil, fmt.Errorf("checking path: %w", err)
 	}
 
@@ -105,7 +106,8 @@ func New(dbPath string, opts ...Option) (*Source, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("reading db metadata: %w", err)
 	}
-	if model != 6 {
+	const expectedModel = 6
+	if model != expectedModel {
 		_ = db.Close()
 		return nil, fmt.Errorf("unsupported database model version: %d (expected 6)", model)
 	}
@@ -164,7 +166,8 @@ func Download(ctx context.Context, destDir string) (string, error) {
 	}
 
 	// Create destination directory
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	const dirPerm = 0755
+	if err := os.MkdirAll(destDir, dirPerm); err != nil {
 		return "", fmt.Errorf("creating destination directory: %w", err)
 	}
 

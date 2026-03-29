@@ -17,6 +17,13 @@ import (
 const (
 	DefaultAPIURL  = "https://api.github.com"
 	DefaultTimeout = 30 * time.Second
+
+	ecoNPM      = "npm"
+	ecoMaven    = "maven"
+	ecoNuget    = "nuget"
+	ecoComposer = "composer"
+	ecoPub      = "pub"
+	ecoSwift    = "swift"
 )
 
 // Source implements vulns.Source using the GitHub Security Advisory API.
@@ -88,7 +95,7 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 		return nil, err
 	}
 
-	return s.convertAdvisories(advisories, p.Version), nil
+	return s.convertAdvisories(advisories), nil
 }
 
 // QueryBatch queries multiple packages. GHSA doesn't have a batch API,
@@ -137,7 +144,7 @@ func (s *Source) Get(ctx context.Context, id string) (*vulns.Vulnerability, erro
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
 
-	vulns := s.convertAdvisories([]advisory{adv}, "")
+	vulns := s.convertAdvisories([]advisory{adv})
 	if len(vulns) == 0 {
 		return nil, nil
 	}
@@ -178,7 +185,7 @@ func (s *Source) fetchAdvisories(ctx context.Context, url string) ([]advisory, e
 	return advisories, nil
 }
 
-func (s *Source) convertAdvisories(advisories []advisory, version string) []vulns.Vulnerability {
+func (s *Source) convertAdvisories(advisories []advisory) []vulns.Vulnerability {
 	var result []vulns.Vulnerability
 
 	for _, adv := range advisories {
@@ -267,19 +274,20 @@ func parseVersionRange(rangeStr, patchedVersion string) []vulns.Event {
 			continue
 		}
 
-		if strings.HasPrefix(part, ">=") {
+		switch {
+		case strings.HasPrefix(part, ">="):
 			v := strings.TrimSpace(strings.TrimPrefix(part, ">="))
 			events = append(events, vulns.Event{Introduced: v})
-		} else if strings.HasPrefix(part, ">") {
+		case strings.HasPrefix(part, ">"):
 			v := strings.TrimSpace(strings.TrimPrefix(part, ">"))
 			events = append(events, vulns.Event{Introduced: v})
-		} else if strings.HasPrefix(part, "<=") {
+		case strings.HasPrefix(part, "<="):
 			v := strings.TrimSpace(strings.TrimPrefix(part, "<="))
 			events = append(events, vulns.Event{LastAffected: v})
-		} else if strings.HasPrefix(part, "<") {
+		case strings.HasPrefix(part, "<"):
 			v := strings.TrimSpace(strings.TrimPrefix(part, "<"))
 			events = append(events, vulns.Event{Fixed: v})
-		} else if strings.HasPrefix(part, "=") {
+		case strings.HasPrefix(part, "="):
 			v := strings.TrimSpace(strings.TrimPrefix(part, "="))
 			// Exact version: introduced and immediately fixed after
 			events = append(events, vulns.Event{Introduced: v})
@@ -319,28 +327,28 @@ func parseVersionRange(rangeStr, patchedVersion string) []vulns.Event {
 // purlTypeToGHSA converts a PURL type to GHSA ecosystem name.
 func purlTypeToGHSA(purlType string) string {
 	switch purlType {
-	case "npm":
-		return "npm"
+	case ecoNPM:
+		return ecoNPM
 	case "gem":
 		return "rubygems"
 	case "pypi":
 		return "pip"
-	case "maven":
-		return "maven"
-	case "nuget":
-		return "nuget"
+	case ecoMaven:
+		return ecoMaven
+	case ecoNuget:
+		return ecoNuget
 	case "cargo":
 		return "rust"
-	case "composer":
-		return "composer"
+	case ecoComposer:
+		return ecoComposer
 	case "golang":
 		return "go"
 	case "hex":
 		return "erlang"
-	case "pub":
-		return "pub"
-	case "swift":
-		return "swift"
+	case ecoPub:
+		return ecoPub
+	case ecoSwift:
+		return ecoSwift
 	default:
 		return ""
 	}
@@ -349,27 +357,27 @@ func purlTypeToGHSA(purlType string) string {
 // ghsaToOSVEcosystem converts GHSA ecosystem names to OSV ecosystem names.
 func ghsaToOSVEcosystem(ghsaEco string) string {
 	switch ghsaEco {
-	case "npm":
-		return "npm"
+	case ecoNPM:
+		return ecoNPM
 	case "rubygems":
 		return "RubyGems"
 	case "pip":
 		return "PyPI"
-	case "maven":
+	case ecoMaven:
 		return "Maven"
-	case "nuget":
+	case ecoNuget:
 		return "NuGet"
 	case "rust":
 		return "crates.io"
-	case "composer":
+	case ecoComposer:
 		return "Packagist"
 	case "go":
 		return "Go"
 	case "erlang":
 		return "Hex"
-	case "pub":
+	case ecoPub:
 		return "Pub"
-	case "swift":
+	case ecoSwift:
 		return "SwiftPM"
 	default:
 		return ghsaEco

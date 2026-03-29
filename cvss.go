@@ -9,6 +9,19 @@ import (
 	gocvss40 "github.com/pandatix/go-cvss/40"
 )
 
+const (
+	LevelCritical = "critical"
+	LevelHigh     = "high"
+	LevelMedium   = "medium"
+	LevelLow      = "low"
+	LevelNone     = "none"
+
+	thresholdCritical = 9.0
+	thresholdHigh     = 7.0
+	thresholdMedium   = 4.0
+	thresholdLow      = 0.1
+)
+
 // CVSS holds parsed CVSS information.
 type CVSS struct {
 	Version string
@@ -114,16 +127,16 @@ func parseCVSS40(vector string) (*CVSS, error) {
 // scoreToLevel converts a CVSS v2/v3 score to a severity level.
 func scoreToLevel(score float64) string {
 	switch {
-	case score >= 9.0:
-		return "critical"
-	case score >= 7.0:
-		return "high"
-	case score >= 4.0:
-		return "medium"
+	case score >= thresholdCritical:
+		return LevelCritical
+	case score >= thresholdHigh:
+		return LevelHigh
+	case score >= thresholdMedium:
+		return LevelMedium
 	case score > 0:
-		return "low"
+		return LevelLow
 	default:
-		return "none"
+		return LevelNone
 	}
 }
 
@@ -131,16 +144,16 @@ func scoreToLevel(score float64) string {
 // CVSS 4.0 uses different thresholds.
 func scoreToLevel40(score float64) string {
 	switch {
-	case score >= 9.0:
-		return "critical"
-	case score >= 7.0:
-		return "high"
-	case score >= 4.0:
-		return "medium"
-	case score >= 0.1:
-		return "low"
+	case score >= thresholdCritical:
+		return LevelCritical
+	case score >= thresholdHigh:
+		return LevelHigh
+	case score >= thresholdMedium:
+		return LevelMedium
+	case score >= thresholdLow:
+		return LevelLow
 	default:
-		return "none"
+		return LevelNone
 	}
 }
 
