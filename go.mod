@@ -6,7 +6,7 @@ require (
 	github.com/git-pkgs/purl v0.1.11
 	github.com/git-pkgs/vers v0.2.4
 	github.com/pandatix/go-cvss v0.6.2
-	modernc.org/sqlite v1.49.1
+	modernc.org/sqlite v1.50.0
 )
 
 require (
