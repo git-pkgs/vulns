@@ -28,7 +28,9 @@ func versionInRange(events []Event, version string) bool {
 	inRange := false
 	for _, e := range events {
 		if e.Introduced != "" {
-			inRange = e.Introduced == "0" || vers.Compare(version, e.Introduced) >= 0
+			if e.Introduced == "0" || vers.Compare(version, e.Introduced) >= 0 {
+				inRange = true
+			}
 		}
 		if e.Fixed != "" && inRange && vers.Compare(version, e.Fixed) >= 0 {
 			inRange = false
