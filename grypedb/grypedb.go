@@ -5,7 +5,9 @@ package grypedb
 import (
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -119,10 +121,14 @@ func New(dbPath string, opts ...Option) (*Source, error) {
 // Download downloads the latest Grype database to the specified directory.
 // Returns the path to the downloaded database file.
 func Download(ctx context.Context, destDir string) (string, error) {
+	return downloadFrom(ctx, LatestDBURL, destDir)
+}
+
+func downloadFrom(ctx context.Context, listingURL, destDir string) (string, error) {
 	client := &http.Client{Timeout: DefaultTimeout}
 
 	// Fetch listing to get latest database URL
-	req, err := http.NewRequestWithContext(ctx, "GET", LatestDBURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", listingURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("creating listing request: %w", err)
 	}
@@ -178,19 +184,32 @@ func Download(ctx context.Context, destDir string) (string, error) {
 	}
 	defer func() { _ = outFile.Close() }()
 
-	// Decompress if gzipped
-	var reader io.Reader = resp.Body
+	// Hash the compressed download to verify against the listing checksum
+	hasher := sha256.New()
+	body := io.TeeReader(resp.Body, hasher)
+
+	// Decompress if gzipped, with a 2 GB cap on decompressed output
+	const maxDecompressedSize = 2 << 30
+	var reader io.Reader = body
 	if strings.HasSuffix(latest.URL, ".gz") {
-		gzReader, err := gzip.NewReader(resp.Body)
+		gzReader, err := gzip.NewReader(body)
 		if err != nil {
 			return "", fmt.Errorf("creating gzip reader: %w", err)
 		}
 		defer func() { _ = gzReader.Close() }()
-		reader = gzReader
+		reader = io.LimitReader(gzReader, maxDecompressedSize)
 	}
 
 	if _, err := io.Copy(outFile, reader); err != nil {
 		return "", fmt.Errorf("writing database: %w", err)
+	}
+
+	if latest.Checksum != "" {
+		got := "sha256:" + hex.EncodeToString(hasher.Sum(nil))
+		if got != latest.Checksum {
+			_ = os.Remove(dbPath)
+			return "", fmt.Errorf("checksum mismatch: got %s, want %s", got, latest.Checksum)
+		}
 	}
 
 	return dbPath, nil
