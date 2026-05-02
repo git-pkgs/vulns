@@ -190,7 +190,7 @@ func downloadFrom(ctx context.Context, listingURL, destDir string) (string, erro
 
 	// Decompress if gzipped, with a 2 GB cap on decompressed output
 	const maxDecompressedSize = 2 << 30
-	var reader io.Reader = body
+	reader := body
 	if strings.HasSuffix(latest.URL, ".gz") {
 		gzReader, err := gzip.NewReader(body)
 		if err != nil {
