@@ -113,3 +113,66 @@ func TestAffectedVersionRange(t *testing.T) {
 		})
 	}
 }
+
+func TestVersionInRangeMultiInterval(t *testing.T) {
+	events := []Event{
+		{Introduced: "0"},
+		{Fixed: "1.0.0"},
+		{Introduced: "2.0.0"},
+		{Fixed: "3.0.0"},
+	}
+
+	tests := []struct {
+		version string
+		want    bool
+	}{
+		{"0.5.0", true},
+		{"1.0.0", false},
+		{"1.5.0", false},
+		{"2.0.0", true},
+		{"2.5.0", true},
+		{"3.0.0", false},
+		{"4.0.0", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			got := versionInRange(events, tt.version)
+			if got != tt.want {
+				t.Errorf("versionInRange(%q) = %v, want %v", tt.version, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestVersionInRangeMultiIntervalLastAffected(t *testing.T) {
+	events := []Event{
+		{Introduced: "1.0.0"},
+		{LastAffected: "1.9.0"},
+		{Introduced: "3.0.0"},
+		{LastAffected: "3.9.0"},
+	}
+
+	tests := []struct {
+		version string
+		want    bool
+	}{
+		{"0.5.0", false},
+		{"1.0.0", true},
+		{"1.5.0", true},
+		{"1.9.0", true},
+		{"2.0.0", false},
+		{"3.0.0", true},
+		{"3.9.0", true},
+		{"4.0.0", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			got := versionInRange(events, tt.version)
+			if got != tt.want {
+				t.Errorf("versionInRange(%q) = %v, want %v", tt.version, got, tt.want)
+			}
+		})
+	}
+}
