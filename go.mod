@@ -4,7 +4,7 @@ go 1.25.6
 
 require (
 	github.com/git-pkgs/purl v0.1.12
-	github.com/git-pkgs/vers v0.2.5
+	github.com/git-pkgs/vers v0.2.6
 	github.com/pandatix/go-cvss v0.6.2
 	modernc.org/sqlite v1.50.0
 )
