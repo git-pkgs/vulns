@@ -146,15 +146,18 @@ All sources return vulnerabilities in OSV format:
 
 ```go
 type Vulnerability struct {
-    ID        string
-    Summary   string
-    Details   string
-    Aliases   []string     // Other IDs (CVE, GHSA, etc.)
-    Published time.Time
-    Modified  time.Time
-    Severity  []Severity
-    Affected  []Affected
-    References []Reference
+    SchemaVersion string
+    ID            string
+    Summary       string
+    Details       string
+    Aliases       []string // Other IDs (CVE, GHSA, etc.)
+    Related       []string
+    Published     time.Time
+    Modified      time.Time
+    Withdrawn     *time.Time
+    Severity      []Severity
+    Affected      []Affected
+    References    []Reference
 }
 ```
 
