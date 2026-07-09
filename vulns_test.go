@@ -1,6 +1,7 @@
 package vulns
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -33,8 +34,8 @@ func TestVulnerabilitySeverityLevel(t *testing.T) {
 			expected: "medium",
 		},
 		{
-			name: "unknown when no severity info",
-			vuln: Vulnerability{},
+			name:     "unknown when no severity info",
+			vuln:     Vulnerability{},
 			expected: "unknown",
 		},
 	}
@@ -70,8 +71,8 @@ func TestVulnerabilityCVSSScore(t *testing.T) {
 			expected: 7.5,
 		},
 		{
-			name: "returns -1 when no cvss",
-			vuln: Vulnerability{},
+			name:     "returns -1 when no cvss",
+			vuln:     Vulnerability{},
 			expected: -1,
 		},
 	}
@@ -190,5 +191,61 @@ func TestVulnerabilityJSONSerialization(t *testing.T) {
 
 	if vuln.ID != "CVE-2021-12345" {
 		t.Errorf("unexpected ID: %s", vuln.ID)
+	}
+}
+
+func TestVulnerabilityJSONOSVExportFields(t *testing.T) {
+	vuln := Vulnerability{
+		SchemaVersion: "1.7.5",
+		ID:            "x_test-1",
+		Summary:       "Test vulnerability",
+		Related:       []string{"GHSA-abcd-1234-wxyz"},
+		Affected: []Affected{
+			{
+				Ranges: []Range{
+					{
+						Type: "GIT",
+						Repo: "https://github.com/example/repo",
+						Events: []Event{
+							{Introduced: "0"},
+							{Fixed: "0123456789012345678901234567890123456789"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	b, err := json.Marshal(vuln)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+
+	if got["schema_version"] != "1.7.5" {
+		t.Errorf("schema_version = %v, want 1.7.5", got["schema_version"])
+	}
+	related := got["related"].([]any)
+	if len(related) != 1 || related[0] != "GHSA-abcd-1234-wxyz" {
+		t.Errorf("related = %v, want GHSA-abcd-1234-wxyz", got["related"])
+	}
+	if _, ok := got["published"]; ok {
+		t.Errorf("published must be omitted when zero: %s", b)
+	}
+	if _, ok := got["modified"]; ok {
+		t.Errorf("modified must be omitted when zero: %s", b)
+	}
+
+	affected := got["affected"].([]any)[0].(map[string]any)
+	if _, ok := affected["package"]; ok {
+		t.Errorf("empty package must be omitted: %s", b)
+	}
+	r := affected["ranges"].([]any)[0].(map[string]any)
+	if r["repo"] != "https://github.com/example/repo" {
+		t.Errorf("range repo = %v, want repository URL", r["repo"])
 	}
 }

@@ -32,12 +32,14 @@ type Source interface {
 // Vulnerability represents a security vulnerability in OSV format.
 // This is the canonical format used across all sources.
 type Vulnerability struct {
+	SchemaVersion    string         `json:"schema_version,omitempty"`
 	ID               string         `json:"id"`
 	Summary          string         `json:"summary,omitempty"`
 	Details          string         `json:"details,omitempty"`
 	Aliases          []string       `json:"aliases,omitempty"`
-	Modified         time.Time      `json:"modified"`
-	Published        time.Time      `json:"published"`
+	Related          []string       `json:"related,omitempty"`
+	Modified         time.Time      `json:"modified,omitzero"`
+	Published        time.Time      `json:"published,omitzero"`
 	Withdrawn        *time.Time     `json:"withdrawn,omitempty"`
 	References       []Reference    `json:"references,omitempty"`
 	Affected         []Affected     `json:"affected,omitempty"`
@@ -54,7 +56,7 @@ type Reference struct {
 
 // Affected describes which package versions are affected.
 type Affected struct {
-	Package           Package        `json:"package"`
+	Package           Package        `json:"package,omitzero"`
 	Ranges            []Range        `json:"ranges,omitempty"`
 	Versions          []string       `json:"versions,omitempty"`
 	EcosystemSpecific map[string]any `json:"ecosystem_specific,omitempty"`
@@ -71,6 +73,7 @@ type Package struct {
 // Range describes a version range.
 type Range struct {
 	Type   string  `json:"type"`
+	Repo   string  `json:"repo,omitempty"`
 	Events []Event `json:"events,omitempty"`
 }
 
