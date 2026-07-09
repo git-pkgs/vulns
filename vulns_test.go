@@ -229,6 +229,10 @@ func TestVulnerabilityJSONOSVExportFields(t *testing.T) {
 	if got["schema_version"] != "1.7.5" {
 		t.Errorf("schema_version = %v, want 1.7.5", got["schema_version"])
 	}
+	related := got["related"].([]any)
+	if len(related) != 1 || related[0] != "GHSA-abcd-1234-wxyz" {
+		t.Errorf("related = %v, want GHSA-abcd-1234-wxyz", got["related"])
+	}
 	if _, ok := got["published"]; ok {
 		t.Errorf("published must be omitted when zero: %s", b)
 	}
