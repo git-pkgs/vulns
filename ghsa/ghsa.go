@@ -378,7 +378,7 @@ func ghsaToOSVEcosystem(ghsaEco string) string {
 	case ecoPub:
 		return "Pub"
 	case ecoSwift:
-		return "SwiftPM"
+		return "SwiftURL"
 	default:
 		return ghsaEco
 	}
