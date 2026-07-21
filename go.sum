@@ -2,8 +2,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
-github.com/git-pkgs/purl v0.1.14 h1:GgqwiBNS0eKJqJ/gabUBEC10Xhpj6UX12kfNzujaeYc=
-github.com/git-pkgs/purl v0.1.14/go.mod h1:8oCcdcYZA/e1B33e7Ylju6azboTKjdqf3ybcbQj6I/o=
+github.com/git-pkgs/purl v0.1.15 h1:iQ3clh0Cw41rkM0rf24B7ShnN9Z+UtLMAFlNDUs+Qd4=
+github.com/git-pkgs/purl v0.1.15/go.mod h1:PqCLVBDeZrZgHysR803/AntMELgIr2LFZVNCcwLH2m0=
 github.com/git-pkgs/vers v0.3.0 h1:xM4LLUCRmqzdDfe+/pVQUx4SRyFXRVth6tOsJ14wMKU=
 github.com/git-pkgs/vers v0.3.0/go.mod h1:biTbSQK1qdbrsxDEKnqe3Jzclxz8vW6uDcwKjfUGcOo=
 github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e h1:ijClszYn+mADRFY17kjQEVQ1XRhq2/JR1M3sGqeJoxs=
