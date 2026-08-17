@@ -1,0 +1,22 @@
+{
+  "baseline": "v0.1.16",
+  "cost_usd": 4.719471500000001,
+  "ecosystem": "golang",
+  "notes": "breaks.json is empty so no history-derived tests were generated. Only npm inputs are exercised because the target constructs *purl.PURL exclusively via MakePURL(\"npm\", ...) in its tests; production code receives *purl.PURL from callers outside this repo, so no other concrete Type values are observed at a call site. All files declare package from_vulns and must land in the same directory. Verified passing against github.com/git-pkgs/purl v0.1.16 with go test.",
+  "purl": "pkg:golang/github.com/git-pkgs/purl",
+  "session_id": "d3e7d00d-b9b6-44bc-8887-1e14b95e71a5",
+  "target": "vulns",
+  "validate": [],
+  "verify": [
+    {
+      "version": "v0.1.16",
+      "pass": 6,
+      "fail": 0
+    },
+    {
+      "version": "v0.1.17",
+      "pass": 6,
+      "fail": 0
+    }
+  ]
+}
