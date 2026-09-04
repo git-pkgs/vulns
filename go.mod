@@ -1,12 +1,12 @@
 module github.com/git-pkgs/vulns
 
-go 1.26
+go 1.26.0
 
 toolchain go1.26.7
 
 require (
-	github.com/git-pkgs/purl v0.1.17
-	github.com/git-pkgs/vers v0.6.0
+	github.com/git-pkgs/purl v0.1.20
+	github.com/git-pkgs/vers v0.7.0
 	github.com/pandatix/go-cvss v0.6.4
 	modernc.org/sqlite v1.57.0
 )
@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
-	github.com/package-url/packageurl-go v0.1.6 // indirect
+	github.com/package-url/packageurl-go v0.1.7 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	modernc.org/libc v1.74.4 // indirect
