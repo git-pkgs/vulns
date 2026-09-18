@@ -6,7 +6,7 @@ toolchain go1.26.7
 
 require (
 	github.com/git-pkgs/purl v0.1.20
-	github.com/git-pkgs/vers v0.7.0
+	github.com/git-pkgs/vers v0.7.1
 	github.com/pandatix/go-cvss v0.6.4
 	modernc.org/sqlite v1.59.0
 )
