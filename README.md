@@ -248,4 +248,4 @@ type Source interface {
 
 ## License
 
-MIT
+[MIT](LICENSE).
