@@ -2,10 +2,13 @@ package osv
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/git-pkgs/purl"
@@ -228,4 +231,49 @@ func loadFixture(t *testing.T, name string) []byte {
 		t.Fatalf("failed to load fixture %s: %v", name, err)
 	}
 	return data
+}
+
+func TestSwiftRegistryIdentityRejected(t *testing.T) {
+	var requests []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		requests = append(requests, string(body))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/querybatch" {
+			_, _ = w.Write([]byte(`{"results":[{}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+	source := New(WithBaseURL(server.URL))
+
+	registry, err := purl.Parse("pkg:swift/Mona/Linked-List@1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	coordinates, err := purl.Parse("pkg:swift/github.com/Apple/Swift-NIO@1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := source.Query(context.Background(), registry); !errors.Is(err, ErrUnsupportedIdentity) {
+		t.Errorf("Query err = %v, want ErrUnsupportedIdentity", err)
+	}
+	if _, err := source.QueryBatch(context.Background(), []*purl.PURL{coordinates, registry}); !errors.Is(err, ErrUnsupportedIdentity) {
+		t.Errorf("QueryBatch err = %v, want ErrUnsupportedIdentity", err)
+	}
+	if len(requests) != 0 {
+		t.Fatalf("unsupported identities reached OSV: %q", requests)
+	}
+
+	if _, err := source.Query(context.Background(), coordinates); err != nil {
+		t.Errorf("Query source coordinates: %v", err)
+	}
+	if _, err := source.QueryBatch(context.Background(), []*purl.PURL{coordinates}); err != nil {
+		t.Errorf("QueryBatch source coordinates: %v", err)
+	}
+	if len(requests) != 2 || !strings.Contains(requests[0], `"github.com/Apple/Swift-NIO"`) {
+		t.Errorf("requests = %q", requests)
+	}
 }

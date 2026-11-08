@@ -5,9 +5,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/git-pkgs/purl"
@@ -18,6 +20,9 @@ const (
 	DefaultAPIURL  = "https://api.osv.dev/v1"
 	DefaultTimeout = 30 * time.Second
 )
+
+// ErrUnsupportedIdentity marks a PURL OSV cannot look up, such as a Swift registry package.
+var ErrUnsupportedIdentity = errors.New("osv: package identity is not supported")
 
 // Source implements vulns.Source using the OSV API.
 type Source struct {
@@ -70,6 +75,9 @@ func (s *Source) Name() string {
 
 // Query returns vulnerabilities affecting the package identified by the PURL.
 func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability, error) {
+	if err := checkIdentity(p); err != nil {
+		return nil, err
+	}
 	ecosystem := purl.EcosystemToOSV(p.Type)
 	name := p.FullName()
 
@@ -120,6 +128,9 @@ func (s *Source) QueryBatch(ctx context.Context, purls []*purl.PURL) ([][]vulns.
 
 	queries := make([]queryRequest, len(purls))
 	for i, p := range purls {
+		if err := checkIdentity(p); err != nil {
+			return nil, err
+		}
 		queries[i] = queryRequest{
 			Version: p.Version,
 			Package: packageRef{
@@ -177,6 +188,17 @@ func (s *Source) QueryBatch(ctx context.Context, purls []*purl.PURL) ([][]vulns.
 	}
 
 	return allResults, nil
+}
+
+// checkIdentity rejects Swift registry identities, which have no source-repository coordinates for OSV to match.
+func checkIdentity(p *purl.PURL) error {
+	if p.Type == "swift" {
+		host, _, _ := strings.Cut(p.Namespace, "/")
+		if !strings.Contains(host, ".") {
+			return fmt.Errorf("%w: Swift registry package %q needs source repository coordinates", ErrUnsupportedIdentity, p.FullName())
+		}
+	}
+	return nil
 }
 
 // Get fetches a specific vulnerability by ID.
