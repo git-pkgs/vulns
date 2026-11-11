@@ -121,6 +121,7 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 }
 
 // QueryBatch queries multiple packages at once.
+// An unsupported identity rejects the batch before any request is sent.
 func (s *Source) QueryBatch(ctx context.Context, purls []*purl.PURL) ([][]vulns.Vulnerability, error) {
 	if len(purls) == 0 {
 		return nil, nil
