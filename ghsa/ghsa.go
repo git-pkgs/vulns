@@ -4,9 +4,11 @@ package ghsa
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -14,9 +16,14 @@ import (
 	"github.com/git-pkgs/vulns"
 )
 
+// ErrUnsupportedIdentity marks a PURL GHSA cannot look up, such as a Swift registry package.
+var ErrUnsupportedIdentity = errors.New("ghsa: package identity is not supported")
+
 const (
 	DefaultAPIURL  = "https://api.github.com"
 	DefaultTimeout = 30 * time.Second
+
+	maxPages = 100
 
 	ecoNPM      = "npm"
 	ecoMaven    = "maven"
@@ -82,20 +89,36 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 		return nil, nil // Unsupported ecosystem
 	}
 
-	// Build the query URL
-	url := fmt.Sprintf("%s/advisories?ecosystem=%s&package=%s&per_page=100",
-		s.baseURL, ecosystem, p.FullName())
-
-	if p.Version != "" {
-		url += "&affects=" + p.Version
+	if err := checkIdentity(p); err != nil {
+		return nil, err
 	}
 
-	advisories, err := s.fetchAdvisories(ctx, url)
+	affects := p.FullName()
+	if p.Version != "" {
+		affects += "@" + p.Version
+	}
+	params := url.Values{}
+	params.Set("ecosystem", ecosystem)
+	params.Set("affects", affects)
+	params.Set("per_page", "100")
+
+	advisories, err := s.fetchAdvisories(ctx, s.baseURL+"/advisories?"+params.Encode())
 	if err != nil {
 		return nil, err
 	}
 
 	return s.convertAdvisories(advisories), nil
+}
+
+// checkIdentity rejects Swift registry identities, since GHSA names Swift packages by source repository.
+func checkIdentity(p *purl.PURL) error {
+	if p.Type == ecoSwift {
+		host, _, _ := strings.Cut(p.Namespace, "/")
+		if !strings.Contains(host, ".") {
+			return fmt.Errorf("%w: Swift registry package %q needs source repository coordinates", ErrUnsupportedIdentity, p.FullName())
+		}
+	}
+	return nil
 }
 
 // QueryBatch queries multiple packages. GHSA doesn't have a batch API,
@@ -159,30 +182,62 @@ func (s *Source) setHeaders(req *http.Request) {
 	}
 }
 
-func (s *Source) fetchAdvisories(ctx context.Context, url string) ([]advisory, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+// fetchAdvisories follows Link rel="next" headers until the last page.
+func (s *Source) fetchAdvisories(ctx context.Context, pageURL string) ([]advisory, error) {
+	var all []advisory
+	for range maxPages {
+		advisories, next, err := s.fetchPage(ctx, pageURL)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, advisories...)
+		if next == "" {
+			return all, nil
+		}
+		pageURL = next
+	}
+	return nil, fmt.Errorf("query exceeded %d pages", maxPages)
+}
+
+func (s *Source) fetchPage(ctx context.Context, pageURL string) (advisories []advisory, next string, err error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+		return nil, "", fmt.Errorf("creating request: %w", err)
 	}
 	s.setHeaders(httpReq)
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
+		return nil, "", fmt.Errorf("executing request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("query failed with status %d: %s", resp.StatusCode, string(respBody))
+		return nil, "", fmt.Errorf("query failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var advisories []advisory
 	if err := json.NewDecoder(resp.Body).Decode(&advisories); err != nil {
-		return nil, fmt.Errorf("decoding response: %w", err)
+		return nil, "", fmt.Errorf("decoding response: %w", err)
 	}
 
-	return advisories, nil
+	return advisories, nextLink(resp.Header.Get("Link")), nil
+}
+
+// nextLink extracts the rel="next" target from a Link header.
+func nextLink(header string) string {
+	for link := range strings.SplitSeq(header, ",") {
+		target, params, ok := strings.Cut(strings.TrimSpace(link), ";")
+		if !ok || !strings.HasPrefix(target, "<") || !strings.HasSuffix(target, ">") {
+			continue
+		}
+		for param := range strings.SplitSeq(params, ";") {
+			if strings.TrimSpace(param) == `rel="next"` {
+				return target[1 : len(target)-1]
+			}
+		}
+	}
+	return ""
 }
 
 func (s *Source) convertAdvisories(advisories []advisory) []vulns.Vulnerability {
@@ -407,15 +462,14 @@ type cvssInfo struct {
 	VectorStr  string  `json:"vector_string"`
 }
 
-type identifiers struct {
-	CVE  []identifier `json:"CVE"`
-	GHSA []identifier `json:"GHSA"`
-}
+type identifiers []identifier
 
 func (i identifiers) CVEs() []string {
 	var result []string
-	for _, id := range i.CVE {
-		result = append(result, id.Value)
+	for _, id := range i {
+		if id.Type == "CVE" {
+			result = append(result, id.Value)
+		}
 	}
 	return result
 }
