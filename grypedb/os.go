@@ -35,7 +35,7 @@ func osSpecifierFromPURL(p *purl.PURL) *osSpecifier {
 		spec.name = name
 		spec.setVersion(version)
 	case distro == "":
-	case spec.name == "" || strings.EqualFold(name, spec.name):
+	case spec.name == "" || strings.EqualFold(name, spec.name) || strings.EqualFold(name, opensuseLeap):
 		spec.name = name
 	default:
 		spec.setVersion(distro)
@@ -46,9 +46,15 @@ func osSpecifierFromPURL(p *purl.PURL) *osSpecifier {
 	return spec
 }
 
+// opensuseLeap is the one distribution ID with a hyphen in it.
+const opensuseLeap = "opensuse-leap"
+
 // splitDistro splits at the first "-", ":" or "@", keeping "opensuse-leap" whole.
 func splitDistro(s string) (name, version string) {
-	const leap = "opensuse-leap"
+	const leap = opensuseLeap
+	if strings.EqualFold(s, leap) {
+		return s, ""
+	}
 	if len(s) > len(leap) && strings.EqualFold(s[:len(leap)], leap) && strings.ContainsRune("-:@", rune(s[len(leap)])) {
 		return s[:len(leap)], s[len(leap)+1:]
 	}
@@ -66,7 +72,7 @@ func (o *osSpecifier) setVersion(v string) {
 		o.label = base
 		return
 	}
-	parts := strings.SplitN(base, ".", 3)
+	parts := strings.SplitN(strings.TrimPrefix(base, "v"), ".", 3)
 	o.major = trimZeroes(parts[0])
 	if len(parts) > 1 {
 		o.minor = trimZeroes(parts[1])

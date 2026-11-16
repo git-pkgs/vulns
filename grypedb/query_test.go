@@ -75,6 +75,7 @@ func TestQueryFiltersOSPackagesByDistro(t *testing.T) {
 		{"pkg:deb/debian/openssl@3.0.11-1?distro=bookworm", []string{"DEBIAN-12-ONLY"}},
 		{"pkg:deb/debian/openssl@3.0.11-1", []string{"DEBIAN-11-ONLY", "DEBIAN-12-ONLY"}},
 		{"pkg:deb/ubuntu/openssl@3.0.2?distro=ubuntu-22.04", []string{"UBUNTU-22.04-ONLY"}},
+		{"pkg:deb/ubuntu/openssl@3.0.2?distro=ubuntu-v22.04", []string{"UBUNTU-22.04-ONLY"}},
 		{"pkg:deb/openssl@3.0.11-1", []string{"DEBIAN-11-ONLY", "DEBIAN-12-ONLY", "UBUNTU-22.04-ONLY"}},
 		{"pkg:deb/debian/openssl@3.0.11-1?distro=debian-99", nil},
 		{"pkg:rpm/redhat/openssl@3.0.7-1?distro=rhel-9", []string{"RHEL-9"}},
@@ -119,6 +120,8 @@ func TestOSSpecifierFromPURL(t *testing.T) {
 		{"pkg:deb/ubuntu/openssl?distro=ubuntu-jammy+esm", &osSpecifier{name: "ubuntu", label: "jammy"}},
 		{"pkg:rpm/opensuse/openssl?distro=opensuse-leap-15.5", &osSpecifier{name: "opensuse-leap", major: "15", minor: "5"}},
 		{"pkg:rpm/redhat/openssl?distro=rhel:9", &osSpecifier{name: "rhel", major: "9"}},
+		{"pkg:rpm/opensuse/openssl?distro=opensuse-leap", &osSpecifier{name: "opensuse-leap"}},
+		{"pkg:deb/ubuntu/openssl?distro=ubuntu-v22.04", &osSpecifier{name: "ubuntu", major: "22", minor: "4"}},
 		{"pkg:deb/openssl", nil},
 	}
 	for _, tt := range tests {
