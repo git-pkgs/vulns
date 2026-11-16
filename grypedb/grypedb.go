@@ -248,8 +248,27 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 		WHERE pkg.ecosystem = ? COLLATE NOCASE
 		AND pkg.name = ? COLLATE NOCASE
 	`
+	args := []any{ecosystem, p.FullName()}
 
-	rows, err := s.db.QueryContext(ctx, query, ecosystem, p.FullName())
+	// OS packages are stored under their bare name; the namespace is the distribution.
+	if osPackageTypes[p.Type] {
+		args[1] = p.Name
+		if spec := osSpecifierFromPURL(p); spec != nil {
+			ids, err := s.operatingSystemIDs(ctx, spec)
+			if err != nil {
+				return nil, err
+			}
+			if len(ids) == 0 {
+				return nil, nil
+			}
+			query += " AND aph.operating_system_id IN (?" + strings.Repeat(", ?", len(ids)-1) + ")"
+			for _, id := range ids {
+				args = append(args, id)
+			}
+		}
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying database: %w", err)
 	}
