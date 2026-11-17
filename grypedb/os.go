@@ -161,8 +161,10 @@ func (s *Source) operatingSystemIDs(ctx context.Context, spec *osSpecifier) ([]i
 	where := "(name = ? COLLATE NOCASE OR release_id = ? COLLATE NOCASE) AND (channel IS NULL OR channel = '')"
 	args := []any{spec.name, spec.name}
 	if spec.label != "" {
-		where += " AND (codename = ? COLLATE NOCASE OR label_version = ? COLLATE NOCASE)"
-		args = append(args, spec.label, spec.label)
+		// A bare label may be the distribution's other identifier (distro=rhel for redhat).
+		where += " AND (codename = ? COLLATE NOCASE OR label_version = ? COLLATE NOCASE" +
+			" OR name = ? COLLATE NOCASE OR release_id = ? COLLATE NOCASE)"
+		args = append(args, spec.label, spec.label, spec.label, spec.label)
 	}
 	if spec.major == "" {
 		return s.selectOSIDs(ctx, where, args)
