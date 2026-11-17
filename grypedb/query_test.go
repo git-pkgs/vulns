@@ -95,6 +95,9 @@ func TestQueryFiltersOSPackagesByDistro(t *testing.T) {
 			var ids []string
 			for _, v := range got {
 				ids = append(ids, v.ID)
+				if name := v.Affected[0].Package.Name; name != "openssl" {
+					t.Errorf("affected package name = %q, want openssl", name)
+				}
 			}
 			slices.Sort(ids)
 			if !slices.Equal(ids, tt.want) {

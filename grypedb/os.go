@@ -14,18 +14,13 @@ import (
 // operating system release, through affected_package_handles.operating_system_id.
 var osPackageTypes = map[string]bool{"apk": true, "deb": true, "rpm": true}
 
-// osSpecifier names a release the way grype's OSSpecifier does: a name matched
-// against name or release_id, a numeric version, or a label matched against
-// codename or label_version.
+// osSpecifier mirrors grype's OSSpecifier.
 type osSpecifier struct {
 	name, major, minor, rest, label string
 }
 
-// osSpecifierFromPURL reads the release from the distro qualifier the way grype's
-// ParseDistroString does ("debian-12", "ubuntu-22.04", "jammy+esm", "wolfi"), and
-// takes the name from the namespace when the qualifier has none. A bare codename
-// such as the spec's own "distro=jessie" is read as a label of the namespace's
-// distribution. It returns nil when the PURL names no distribution at all.
+// osSpecifierFromPURL reads a bare codename such as "distro=jessie" as a label
+// of the namespace's distribution, where grype would read it as a name.
 func osSpecifierFromPURL(p *purl.PURL) *osSpecifier {
 	spec := &osSpecifier{name: p.Namespace}
 	distro := strings.TrimSpace(p.Qualifier("distro"))
@@ -51,12 +46,12 @@ const opensuseLeap = "opensuse-leap"
 
 // splitDistro splits at the first "-", ":" or "@", keeping "opensuse-leap" whole.
 func splitDistro(s string) (name, version string) {
-	const leap = opensuseLeap
-	if strings.EqualFold(s, leap) {
+	if strings.EqualFold(s, opensuseLeap) {
 		return s, ""
 	}
-	if len(s) > len(leap) && strings.EqualFold(s[:len(leap)], leap) && strings.ContainsRune("-:@", rune(s[len(leap)])) {
-		return s[:len(leap)], s[len(leap)+1:]
+	n := len(opensuseLeap)
+	if len(s) > n && strings.EqualFold(s[:n], opensuseLeap) && strings.ContainsRune("-:@", rune(s[n])) {
+		return s[:n], s[n+1:]
 	}
 	if i := strings.IndexAny(s, "-:@"); i >= 0 {
 		return s[:i], s[i+1:]
@@ -104,9 +99,8 @@ func trimZeroes(s string) string {
 	return t
 }
 
-// applyOSAlias applies the first matching row of operating_system_specifier_overrides,
-// as grype does (centos and rocky read rhel data, amazon reads amzn). Rows limited to
-// older client schemas are skipped.
+// applyOSAlias skips any override limited by applicable_client_db_schemas,
+// since those constraints are against grype's client schema version.
 func (s *Source) applyOSAlias(ctx context.Context, spec *osSpecifier) error {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT version, version_pattern, codename, replacement,
@@ -160,15 +154,12 @@ func (s *Source) applyOSAlias(ctx context.Context, spec *osSpecifier) error {
 	return rows.Err()
 }
 
-// operatingSystemIDs returns the operating_systems rows for spec, using grype's
-// order: major and minor, then the major-only row, then any minor of the major.
 func (s *Source) operatingSystemIDs(ctx context.Context, spec *osSpecifier) ([]int64, error) {
 	if err := s.applyOSAlias(ctx, spec); err != nil {
 		return nil, err
 	}
-	where := "(name = ? COLLATE NOCASE OR release_id = ? COLLATE NOCASE)"
+	where := "(name = ? COLLATE NOCASE OR release_id = ? COLLATE NOCASE) AND (channel IS NULL OR channel = '')"
 	args := []any{spec.name, spec.name}
-	where += " AND (channel IS NULL OR channel = '')"
 	if spec.label != "" {
 		where += " AND (codename = ? COLLATE NOCASE OR label_version = ? COLLATE NOCASE)"
 		args = append(args, spec.label, spec.label)

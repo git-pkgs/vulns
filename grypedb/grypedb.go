@@ -248,11 +248,14 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 		WHERE pkg.ecosystem = ? COLLATE NOCASE
 		AND pkg.name = ? COLLATE NOCASE
 	`
-	args := []any{ecosystem, p.FullName()}
-
+	pkgName := p.FullName()
 	// OS packages are stored under their bare name; the namespace is the distribution.
 	if osPackageTypes[p.Type] {
-		args[1] = p.Name
+		pkgName = p.Name
+	}
+	args := []any{ecosystem, pkgName}
+
+	if osPackageTypes[p.Type] {
 		if spec := osSpecifierFromPURL(p); spec != nil {
 			ids, err := s.operatingSystemIDs(ctx, spec)
 			if err != nil {
@@ -322,7 +325,7 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 		affected := vulns.Affected{
 			Package: vulns.Package{
 				Ecosystem: purl.EcosystemToOSV(p.Type),
-				Name:      p.FullName(),
+				Name:      pkgName,
 				PURL:      p.String(),
 			},
 		}
