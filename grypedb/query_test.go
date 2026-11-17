@@ -81,6 +81,9 @@ func TestQueryFiltersOSPackagesByDistro(t *testing.T) {
 		{"pkg:rpm/redhat/openssl@3.0.7-1?distro=rhel-9", []string{"RHEL-9"}},
 		{"pkg:rpm/rocky/openssl@3.0.7-1?distro=rocky-9", []string{"RHEL-9"}},
 		{"pkg:rpm/redhat/openssl@3.0.7-1?distro=rhel-9.0+eus", []string{"RHEL-9"}},
+		{"pkg:rpm/redhat/openssl@3.0.7-1?distro=rhel", []string{"RHEL-9"}},
+		{"pkg:rpm/rhel/openssl@3.0.7-1?distro=redhat", []string{"RHEL-9"}},
+		{"pkg:deb/debian/openssl@3.0.11-1?distro=ubuntu", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.purl, func(t *testing.T) {
