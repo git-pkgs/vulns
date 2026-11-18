@@ -4,6 +4,9 @@ package nvd
 import (
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
+	jsonv2 "encoding/json/v2"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -117,12 +120,11 @@ func (s *Source) Query(ctx context.Context, p *purl.PURL) ([]vulns.Vulnerability
 		return nil, fmt.Errorf("query failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var nvdResp nvdResponse
-	if err := json.NewDecoder(resp.Body).Decode(&nvdResp); err != nil {
+	result, err := decodeVulnerabilities(resp.Body, p)
+	if err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
-
-	return convertVulnerabilities(nvdResp.Vulnerabilities, p), nil
+	return result, nil
 }
 
 // QueryBatch queries multiple packages. NVD doesn't have a batch API,
@@ -189,90 +191,149 @@ func (s *Source) Get(ctx context.Context, id string) (*vulns.Vulnerability, erro
 		return nil, fmt.Errorf("get vulnerability failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var nvdResp nvdResponse
-	if err := json.NewDecoder(resp.Body).Decode(&nvdResp); err != nil {
+	vulnList, err := decodeVulnerabilities(resp.Body, nil)
+	if err != nil {
 		return nil, fmt.Errorf("decoding response: %w", err)
 	}
-
-	if len(nvdResp.Vulnerabilities) == 0 {
-		return nil, nil
-	}
-
-	vulnList := convertVulnerabilities(nvdResp.Vulnerabilities, nil)
 	if len(vulnList) == 0 {
 		return nil, nil
 	}
 	return &vulnList[0], nil
 }
 
-func convertVulnerabilities(nvdVulns []nvdVulnerability, p *purl.PURL) []vulns.Vulnerability {
-	var result []vulns.Vulnerability
+var (
+	errResponseNotObject       = errors.New("NVD response is not a JSON object")
+	errVulnerabilitiesNotArray = errors.New(`NVD "vulnerabilities" is not an array`)
+)
 
-	for _, nv := range nvdVulns {
-		cve := nv.CVE
-		v := vulns.Vulnerability{
-			ID:      cve.ID,
-			Summary: getEnglishDescription(cve.Descriptions),
-		}
-
-		// Parse timestamps
-		if cve.Published != "" {
-			if t, err := time.Parse(time.RFC3339, cve.Published); err == nil {
-				v.Published = t
-			}
-		}
-		if cve.LastModified != "" {
-			if t, err := time.Parse(time.RFC3339, cve.LastModified); err == nil {
-				v.Modified = t
-			}
-		}
-
-		// Add references
-		for _, ref := range cve.References {
-			v.References = append(v.References, vulns.Reference{
-				Type: "WEB",
-				URL:  ref.URL,
-			})
-		}
-
-		// Add CVSS severity
-		switch {
-		case len(cve.Metrics.CVSSMetricV31) > 0:
-			m := cve.Metrics.CVSSMetricV31[0]
-			v.Severity = append(v.Severity, vulns.Severity{
-				Type:  "CVSS_V3",
-				Score: m.CVSSData.VectorString,
-			})
-		case len(cve.Metrics.CVSSMetricV30) > 0:
-			m := cve.Metrics.CVSSMetricV30[0]
-			v.Severity = append(v.Severity, vulns.Severity{
-				Type:  "CVSS_V3",
-				Score: m.CVSSData.VectorString,
-			})
-		case len(cve.Metrics.CVSSMetricV2) > 0:
-			m := cve.Metrics.CVSSMetricV2[0]
-			v.Severity = append(v.Severity, vulns.Severity{
-				Type:  "CVSS_V2",
-				Score: m.CVSSData.VectorString,
-			})
-		}
-
-		// Add affected package info if we have a PURL
-		if p != nil {
-			affected := vulns.Affected{
-				Package: vulns.Package{
-					Ecosystem: purl.EcosystemToOSV(p.Type),
-					Name:      p.FullName(),
-					PURL:      p.String(),
-				},
-			}
-			v.Affected = append(v.Affected, affected)
-		}
-
-		result = append(result, v)
+// decodeVulnerabilities reads an NVD response and converts its
+// "vulnerabilities" entries one at a time, so the decoded NVD structures are
+// never held alongside the result. Other members are skipped.
+func decodeVulnerabilities(r io.Reader, p *purl.PURL) ([]vulns.Vulnerability, error) {
+	decoder := jsontext.NewDecoder(r, json.DefaultOptionsV1())
+	opening, err := decoder.ReadToken()
+	if err != nil {
+		return nil, err
+	}
+	if opening.Kind() != '{' {
+		return nil, errResponseNotObject
 	}
 
-	return result
+	var result []vulns.Vulnerability
+	for decoder.PeekKind() != '}' {
+		name, err := decoder.ReadToken()
+		if err != nil {
+			return nil, err
+		}
+		if name.String() != "vulnerabilities" {
+			if err := decoder.SkipValue(); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		result, err = decodeVulnerabilityArray(decoder, p, result)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, err := decoder.ReadToken(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// decodeVulnerabilityArray decodes the value of "vulnerabilities". A null
+// value leaves result unchanged, as encoding/json does for a nil slice.
+func decodeVulnerabilityArray(decoder *jsontext.Decoder, p *purl.PURL, result []vulns.Vulnerability) ([]vulns.Vulnerability, error) {
+	switch decoder.PeekKind() {
+	case 'n':
+		return result, decoder.SkipValue()
+	case '[':
+	default:
+		if err := decoder.SkipValue(); err != nil {
+			return nil, err
+		}
+		return nil, errVulnerabilitiesNotArray
+	}
+
+	if _, err := decoder.ReadToken(); err != nil {
+		return nil, err
+	}
+	for decoder.PeekKind() != ']' {
+		var nv nvdVulnerability
+		if err := jsonv2.UnmarshalDecode(decoder, &nv, json.DefaultOptionsV1()); err != nil {
+			return nil, err
+		}
+		result = append(result, convertVulnerability(nv, p))
+	}
+	if _, err := decoder.ReadToken(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func convertVulnerability(nv nvdVulnerability, p *purl.PURL) vulns.Vulnerability {
+	cve := nv.CVE
+	v := vulns.Vulnerability{
+		ID:      cve.ID,
+		Summary: getEnglishDescription(cve.Descriptions),
+	}
+
+	// Parse timestamps
+	if cve.Published != "" {
+		if t, err := time.Parse(time.RFC3339, cve.Published); err == nil {
+			v.Published = t
+		}
+	}
+	if cve.LastModified != "" {
+		if t, err := time.Parse(time.RFC3339, cve.LastModified); err == nil {
+			v.Modified = t
+		}
+	}
+
+	// Add references
+	for _, ref := range cve.References {
+		v.References = append(v.References, vulns.Reference{
+			Type: "WEB",
+			URL:  ref.URL,
+		})
+	}
+
+	// Add CVSS severity
+	switch {
+	case len(cve.Metrics.CVSSMetricV31) > 0:
+		m := cve.Metrics.CVSSMetricV31[0]
+		v.Severity = append(v.Severity, vulns.Severity{
+			Type:  "CVSS_V3",
+			Score: m.CVSSData.VectorString,
+		})
+	case len(cve.Metrics.CVSSMetricV30) > 0:
+		m := cve.Metrics.CVSSMetricV30[0]
+		v.Severity = append(v.Severity, vulns.Severity{
+			Type:  "CVSS_V3",
+			Score: m.CVSSData.VectorString,
+		})
+	case len(cve.Metrics.CVSSMetricV2) > 0:
+		m := cve.Metrics.CVSSMetricV2[0]
+		v.Severity = append(v.Severity, vulns.Severity{
+			Type:  "CVSS_V2",
+			Score: m.CVSSData.VectorString,
+		})
+	}
+
+	// Add affected package info if we have a PURL
+	if p != nil {
+		affected := vulns.Affected{
+			Package: vulns.Package{
+				Ecosystem: purl.EcosystemToOSV(p.Type),
+				Name:      p.FullName(),
+				PURL:      p.String(),
+			},
+		}
+		v.Affected = append(v.Affected, affected)
+	}
+
+	return v
 }
 
 func getEnglishDescription(descriptions []nvdDescription) string {
@@ -287,14 +348,8 @@ func getEnglishDescription(descriptions []nvdDescription) string {
 	return ""
 }
 
-// NVD API response types
-
-type nvdResponse struct {
-	ResultsPerPage  int                `json:"resultsPerPage"`
-	StartIndex      int                `json:"startIndex"`
-	TotalResults    int                `json:"totalResults"`
-	Vulnerabilities []nvdVulnerability `json:"vulnerabilities"`
-}
+// NVD API response types. A response is an object whose "vulnerabilities"
+// array holds nvdVulnerability entries; decodeVulnerabilities reads it.
 
 type nvdVulnerability struct {
 	CVE nvdCVE `json:"cve"`
