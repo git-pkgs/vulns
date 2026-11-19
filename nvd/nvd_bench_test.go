@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"testing"
 
 	"github.com/git-pkgs/purl"
@@ -75,7 +74,7 @@ func largeResponse(tb testing.TB, count int) []byte {
 func TestQueryLargeResponse(t *testing.T) {
 	const count = 2000
 	p, _ := purl.Parse("pkg:npm/example@1.0.0")
-	got, err := newStaticSource(http.StatusOK, largeResponse(t, count)).Query(context.Background(), p)
+	got, err := newStaticSource(largeResponse(t, count)).Query(context.Background(), p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +89,7 @@ func TestQueryLargeResponse(t *testing.T) {
 
 func BenchmarkQueryLargeResponse(b *testing.B) {
 	p, _ := purl.Parse("pkg:npm/example@1.0.0")
-	src := newStaticSource(http.StatusOK, largeResponse(b, 2000))
+	src := newStaticSource(largeResponse(b, 2000))
 	b.ReportAllocs()
 	for b.Loop() {
 		if _, err := src.Query(context.Background(), p); err != nil {
