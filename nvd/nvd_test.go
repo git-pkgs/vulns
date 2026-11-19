@@ -45,8 +45,8 @@ const fixtureResponse = `{
     {"cve": {
       "id": "CVE-2021-44228",
       "sourceIdentifier": "security@apache.org",
-      "published": "2021-12-10T10:15:09.143Z",
-      "lastModified": "2026-08-11T19:33:44.513Z",
+      "published": "2021-12-10T10:15:09.143",
+      "lastModified": "2026-08-11T19:33:44.513",
       "vulnStatus": "Analyzed",
       "descriptions": [
         {"lang": "es", "value": "Descripcion"},
@@ -114,6 +114,9 @@ func TestQueryDecodesResponse(t *testing.T) {
 	}
 	if want := time.Date(2026, 8, 11, 19, 33, 44, 513000000, time.UTC); !first.Modified.Equal(want) {
 		t.Errorf("Modified = %v, want %v", first.Modified, want)
+	}
+	if want := time.Date(2018, 1, 10, 22, 29, 0, 123000000, time.UTC); !got[1].Published.Equal(want) {
+		t.Errorf("RFC3339 Published = %v, want %v", got[1].Published, want)
 	}
 	wantRefs := []vulns.Reference{
 		{Type: "WEB", URL: "https://logging.apache.org/log4j/2.x/security.html"},
