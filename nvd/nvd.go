@@ -279,17 +279,8 @@ func convertVulnerability(nv nvdVulnerability, p *purl.PURL) vulns.Vulnerability
 		Summary: getEnglishDescription(cve.Descriptions),
 	}
 
-	// Parse timestamps
-	if cve.Published != "" {
-		if t, err := time.Parse(time.RFC3339, cve.Published); err == nil {
-			v.Published = t
-		}
-	}
-	if cve.LastModified != "" {
-		if t, err := time.Parse(time.RFC3339, cve.LastModified); err == nil {
-			v.Modified = t
-		}
-	}
+	v.Published = parseTime(cve.Published)
+	v.Modified = parseTime(cve.LastModified)
 
 	// Add references
 	for _, ref := range cve.References {
@@ -334,6 +325,19 @@ func convertVulnerability(nv nvdVulnerability, p *purl.PURL) vulns.Vulnerability
 	}
 
 	return v
+}
+
+// NVD sends timestamps in UTC with no offset, e.g. "2021-12-10T10:15:09.143".
+const nvdTimeLayout = "2006-01-02T15:04:05"
+
+func parseTime(s string) time.Time {
+	if t, err := time.Parse(nvdTimeLayout, s); err == nil {
+		return t
+	}
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t
+	}
+	return time.Time{}
 }
 
 func getEnglishDescription(descriptions []nvdDescription) string {

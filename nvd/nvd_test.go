@@ -15,21 +15,20 @@ import (
 
 // staticTransport answers every request with the same JSON body.
 type staticTransport struct {
-	status int
-	body   []byte
+	body []byte
 }
 
 func (t staticTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{
-		StatusCode: t.status,
+		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(bytes.NewReader(t.body)),
 		Request:    req,
 	}, nil
 }
 
-func newStaticSource(status int, body []byte) *Source {
-	return New(WithHTTPClient(&http.Client{Transport: staticTransport{status: status, body: body}}))
+func newStaticSource(body []byte) *Source {
+	return New(WithHTTPClient(&http.Client{Transport: staticTransport{body: body}}))
 }
 
 // fixtureResponse has members before and after "vulnerabilities", unused
@@ -45,8 +44,8 @@ const fixtureResponse = `{
     {"cve": {
       "id": "CVE-2021-44228",
       "sourceIdentifier": "security@apache.org",
-      "published": "2021-12-10T10:15:09.143Z",
-      "lastModified": "2026-08-11T19:33:44.513Z",
+      "published": "2021-12-10T10:15:09.143",
+      "lastModified": "2026-08-11T19:33:44.513",
       "vulnStatus": "Analyzed",
       "descriptions": [
         {"lang": "es", "value": "Descripcion"},
@@ -97,7 +96,7 @@ func TestQueryDecodesResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := newStaticSource(http.StatusOK, []byte(fixtureResponse)).Query(context.Background(), p)
+	got, err := newStaticSource([]byte(fixtureResponse)).Query(context.Background(), p)
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
@@ -114,6 +113,9 @@ func TestQueryDecodesResponse(t *testing.T) {
 	}
 	if want := time.Date(2026, 8, 11, 19, 33, 44, 513000000, time.UTC); !first.Modified.Equal(want) {
 		t.Errorf("Modified = %v, want %v", first.Modified, want)
+	}
+	if want := time.Date(2018, 1, 10, 22, 29, 0, 123000000, time.UTC); !got[1].Published.Equal(want) {
+		t.Errorf("RFC3339 Published = %v, want %v", got[1].Published, want)
 	}
 	wantRefs := []vulns.Reference{
 		{Type: "WEB", URL: "https://logging.apache.org/log4j/2.x/security.html"},
@@ -155,7 +157,7 @@ func TestQueryEmptyAndNullVulnerabilities(t *testing.T) {
 		`{"resultsPerPage": 0, "totalResults": 0, "vulnerabilities": null}`,
 		`{"resultsPerPage": 0, "totalResults": 0}`,
 	} {
-		got, err := newStaticSource(http.StatusOK, []byte(body)).Query(context.Background(), p)
+		got, err := newStaticSource([]byte(body)).Query(context.Background(), p)
 		if err != nil {
 			t.Errorf("%s: %v", body, err)
 		}
@@ -173,7 +175,7 @@ func TestQueryMalformedResponse(t *testing.T) {
 		`{"vulnerabilities": {"cve": {}}}`,
 		`{"vulnerabilities": [{"cve": {"id": 7}}]}`,
 	} {
-		if _, err := newStaticSource(http.StatusOK, []byte(body)).Query(context.Background(), p); err == nil {
+		if _, err := newStaticSource([]byte(body)).Query(context.Background(), p); err == nil {
 			t.Errorf("%.40q: no error", body)
 		} else if !strings.Contains(err.Error(), "decoding response") {
 			t.Errorf("%.40q: error %q lacks the decoding prefix", body, err)
@@ -182,7 +184,7 @@ func TestQueryMalformedResponse(t *testing.T) {
 }
 
 func TestGetReturnsFirstVulnerability(t *testing.T) {
-	src := newStaticSource(http.StatusOK, []byte(fixtureResponse))
+	src := newStaticSource([]byte(fixtureResponse))
 	got, err := src.Get(context.Background(), "CVE-2021-44228")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
@@ -191,7 +193,7 @@ func TestGetReturnsFirstVulnerability(t *testing.T) {
 		t.Fatalf("Get = %+v", got)
 	}
 
-	empty := newStaticSource(http.StatusOK, []byte(`{"vulnerabilities": []}`))
+	empty := newStaticSource([]byte(`{"vulnerabilities": []}`))
 	if got, err := empty.Get(context.Background(), "CVE-2021-44228"); err != nil || got != nil {
 		t.Fatalf("Get on empty = %+v, %v", got, err)
 	}
